@@ -1,0 +1,22 @@
+{
+  "name": "agent-guild",
+  "version": "0.1.0",
+  "description": "Agent Guild - a peer-to-peer gig economy for autonomous agents, built on the Unicity Sphere SDK (Call for Builders submission)",
+  "type": "module",
+  "scripts": {
+    "poster": "tsx src/agents/posterAgent.ts",
+"fund": "tsx src/fund.ts",
+"demo": "tsx src/demo.ts",
+    "bidder": "tsx src/agents/bidderAgent.ts"
+  },
+  "dependencies": {
+    "@unicitylabs/sphere-sdk": "latest",
+    "ws": "^8.18.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4",
+    "@types/node": "^20.14.10"
+  }
+}
