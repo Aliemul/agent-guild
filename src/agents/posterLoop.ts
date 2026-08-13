@@ -1,12 +1,13 @@
 import 'dotenv/config';
-import { Sphere, randomUUID } from '@unicitylabs/sphere-sdk';
+import { Sphere, randomUUID, getCoinIdBySymbol } from '@unicitylabs/sphere-sdk';
 import { createNodeProviders } from '@unicitylabs/sphere-sdk/impl/nodejs';
 import { JobPosting, JobBid, JobDelivery, parseGuildMessage } from '../types.js';
 
 const JOB_BUDGET = '2000000';
 const JOB_COIN = 'UCT';
 const BID_WINDOW_MS = 30_000;
-const POST_INTERVAL_MS = 10 * 60 * 1000; // post a fresh job every 10 minutes
+const POST_INTERVAL_MS = 10 * 60 * 1000;
+const TOPUP_AMOUNT = 10_000_000n;
 
 const JOB_TEMPLATES = [
   'Summarize 50 news articles into 3 bullet points each',
@@ -53,7 +54,27 @@ async function main() {
     await gc.joinGroup(groupId);
   }
 
+  const coinId = getCoinIdBySymbol(JOB_COIN);
+
+  async function topUp() {
+    if (!coinId) return;
+    try {
+      const result = await sphere.payments.mintFungibleToken(coinId, TOPUP_AMOUNT);
+      if (result.success) {
+        console.log(`[poster-loop] Topped up wallet: +${TOPUP_AMOUNT} ${JOB_COIN}`);
+      } else {
+        console.error('[poster-loop] Top-up mint failed:', result.error);
+      }
+    } catch (err) {
+      console.error('[poster-loop] Top-up mint threw:', err);
+    }
+  }
+
   async function postOneJob() {
+    // Testnet tokens are free - top up before every job so the demo
+    // never runs dry, regardless of how many jobs have paid out already.
+    await topUp();
+
     const title = JOB_TEMPLATES[Math.floor(Math.random() * JOB_TEMPLATES.length)];
     const job: JobPosting = {
       tag: 'GUILD_JOB',
@@ -94,8 +115,12 @@ async function main() {
         if (parsed?.tag !== 'GUILD_DELIVERY' || parsed.jobId !== job.jobId) return;
         clearTimeout(timeout);
         console.log(`[poster-loop] Delivery received: ${(parsed as JobDelivery).resultUrl}`);
-        const pay = await sphere.payments.send({ recipient: `@${winner.bidder}`, amount: winner.price, coinId: job.coinId });
-        console.log(`[poster-loop] Payment ${pay.status === 'completed' ? 'SETTLED' : pay.status}`);
+        try {
+          const pay = await sphere.payments.send({ recipient: `@${winner.bidder}`, amount: winner.price, coinId: job.coinId });
+          console.log(`[poster-loop] Payment ${pay.status === 'completed' ? 'SETTLED' : pay.status}`);
+        } catch (err) {
+          console.error('[poster-loop] Payment failed (will retry next cycle with fresh top-up):', err instanceof Error ? err.message : err);
+        }
         unsub();
         resolve();
       });
@@ -106,7 +131,7 @@ async function main() {
     try {
       await postOneJob();
     } catch (err) {
-      console.error('[poster-loop] error posting job:', err);
+      console.error('[poster-loop] error in job cycle (continuing):', err instanceof Error ? err.message : err);
     }
     await new Promise((res) => setTimeout(res, POST_INTERVAL_MS));
   }
