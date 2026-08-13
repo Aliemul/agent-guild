@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "poster": "tsx src/agents/posterAgent.ts",
-"fund": "tsx src/fund.ts",
-"demo": "tsx src/demo.ts",
-    "bidder": "tsx src/agents/bidderAgent.ts"
+    "fund": "tsx src/fund.ts",
+    "bidder": "tsx src/agents/bidderAgent.ts",
+    "poster-loop": "tsx src/agents/posterLoop.ts",
+    "demo": "tsx src/demo.ts"
   },
   "dependencies": {
     "@unicitylabs/sphere-sdk": "latest",
